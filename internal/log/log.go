@@ -20,9 +20,9 @@ import (
 // reaches its configured size limit, a new segment is created
 // automatically.
 //
-// Log is safe for concurrent use. Appends and structural mutations
-// (segment creation, truncation) take the write lock; reads take the
-// read lock.
+// Append, Read, Close, Truncate, and offset queries use the log mutex.
+// Callers must coordinate Remove and Reset with other operations; Reader
+// captures the current segment list but does not provide an immutable snapshot.
 type Log struct {
 	mu            sync.RWMutex
 	Dir           string
@@ -75,6 +75,7 @@ func (l *Log) setup() error {
 		if err = l.newSegment(baseOffsets[i]); err != nil {
 			return nil
 		}
+		// Each segment contributes two filenames (.index and .store), so skip its twin.
 		i++
 	}
 	if l.segments == nil {
@@ -146,8 +147,9 @@ func (l *Log) Remove() error {
 	return os.RemoveAll(l.Dir)
 }
 
-// Reset removes all data and re-initializes the log from scratch,
-// creating a fresh segment at the configured InitialOffset.
+// Reset removes the log directory and then calls setup. The current
+// implementation does not recreate that directory or clear in-memory segments,
+// so it is not a complete reset and normally fails when setup reads the directory.
 func (l *Log) Reset() error {
 	if err := l.Remove(); err != nil {
 		return err
@@ -165,7 +167,8 @@ func (l *Log) LowestOffset() (uint64, error) {
 
 // HighestOffset returns the offset of the last record in the log
 // (nextOffset of the last segment minus one). It returns 0 if the log
-// is empty.
+// has a next offset of zero; with a nonzero InitialOffset, an empty log
+// instead reports InitialOffset - 1.
 func (l *Log) HighestOffset() (uint64, error) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
@@ -177,7 +180,7 @@ func (l *Log) HighestOffset() (uint64, error) {
 }
 
 // Truncate removes all segments whose records have offsets strictly
-// less than lowest. Segments that end at or before lowest are deleted
+// less than lowest. Segments whose exclusive end is at or below lowest are deleted
 // from disk; the remaining segments become the new segment list.
 func (l *Log) Truncate(lowest uint64) error {
 	l.mu.Lock()
@@ -199,7 +202,8 @@ func (l *Log) Truncate(lowest uint64) error {
 
 // Reader returns an io.Reader that streams all record bytes from all
 // segments in order, starting from the beginning of the first segment.
-// It is used for replication (sending the full log to a follower).
+// Output includes each record's length prefix, suitable for copying raw log data;
+// it is not a stream of concatenated unframed protobuf messages.
 func (l *Log) Reader() io.Reader {
 	l.mu.Lock()
 	defer l.mu.Unlock()

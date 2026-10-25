@@ -1,3 +1,4 @@
+# Local development certificates and ACL files live outside the source tree.
 CONFIG_PATH=${HOME}/.proglog/
 $(CONFIG_PATH)/model.conf:
 	cp test/model.conf $(CONFIG_PATH)/model.conf
@@ -9,6 +10,8 @@ init:
 	mkdir -p ${CONFIG_PATH}
 
 .PHONY: gencert
+# Generate a CA, localhost server identity, and root/nobody client identities.
+# Client common names become the subjects checked by the ACL.
 gencert:
 	cfssl gencert \
 		-initca test/ca-csr.json | cfssljson -bare ca
@@ -39,9 +42,11 @@ gencert:
 	mv *.pem *.csr ${CONFIG_PATH}
 
 .PHONY: test
+# Requires certificates from gencert; copies ACL fixtures before race-enabled tests.
 test: $(CONFIG_PATH)/policy.csv $(CONFIG_PATH)/model.conf
 	go test -race ./...
 
+# Regenerate bindings from log.proto; document the schema rather than generated Go.
 compile:
 	protoc api/v1/*.proto \
 		--go_out=. \

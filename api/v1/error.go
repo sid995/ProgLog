@@ -8,10 +8,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// ErrOffsetOutOfRange identifies an absolute offset absent from the log.
 type ErrOffsetOutOfRange struct {
 	Offset uint64
 }
 
+// GRPCStatus exposes a NotFound status with an English explanation for RPC clients.
 func (e ErrOffsetOutOfRange) GRPCStatus() *status.Status {
 	st := status.New(
 		codes.NotFound,
@@ -33,6 +35,7 @@ func (e ErrOffsetOutOfRange) GRPCStatus() *status.Status {
 	return std
 }
 
+// Error implements error using the same status text returned over gRPC.
 func (e ErrOffsetOutOfRange) Error() string {
 	return e.GRPCStatus().Err().Error()
 }

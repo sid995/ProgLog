@@ -24,33 +24,43 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Authorizer decides whether an authenticated subject may perform a log action.
 type Authorizer interface {
+	// Authorize returns an error when the requested permission is denied.
 	Authorize(subject, object, action string) error
 }
 
+// Config supplies the persistent log and authorization policy required by RPC handlers.
 type Config struct {
 	CommitLog  CommitLog
 	Authorizer Authorizer
 }
 
+// All RPC operations target the literal policy object "*" with an action per operation.
 const (
 	objectWildcard = "*"
 	produceAction  = "produce"
 	consumeAction  = "consume"
 )
 
+// CommitLog is the storage contract needed by unary and streaming RPCs.
 type CommitLog interface {
+	// Append assigns an offset and stores the record.
 	Append(*api.Record) (uint64, error)
+	// Read retrieves an absolute offset or returns an error.
 	Read(uint64) (*api.Record, error)
 }
 
+// Compile-time assertion that grpcServer implements the generated service contract.
 var _ api.LogServer = (*grpcServer)(nil)
 
+// grpcServer implements log RPCs using shared storage and authorization dependencies.
 type grpcServer struct {
 	api.UnimplementedLogServer
 	*Config
 }
 
+// newgrpcServer attaches dependencies; embedded generated methods supply fallback RPCs.
 func newgrpcServer(config *Config) (srv *grpcServer, err error) {
 	srv = &grpcServer{
 		Config: config,
@@ -58,6 +68,9 @@ func newgrpcServer(config *Config) (srv *grpcServer, err error) {
 	return srv, nil
 }
 
+// NewGRPCServer registers the log service with logging, authentication, and telemetry.
+// The caller supplies transport credentials and starts serving on a listener.
+// Trace sampling and metric view registration affect process-wide OpenCensus state.
 func NewGRPCServer(config *Config, grpcOpts ...grpc.ServerOption) (*grpc.Server, error) {
 	logger := zap.L().Named("server")
 	zapOpts := []grpc_zap.Option{
@@ -78,6 +91,7 @@ func NewGRPCServer(config *Config, grpcOpts ...grpc.ServerOption) (*grpc.Server,
 		return nil, err
 	}
 
+	// Tagging runs before logging, then authentication populates the handler context.
 	grpcOpts = append(
 		grpcOpts,
 		grpc.StreamInterceptor(
@@ -105,6 +119,7 @@ func NewGRPCServer(config *Config, grpcOpts ...grpc.ServerOption) (*grpc.Server,
 	return gsrv, nil
 }
 
+// Produce checks write permission before appending and returns the assigned offset.
 func (s *grpcServer) Produce(ctx context.Context, req *api.ProduceRequest) (*api.ProduceResponse, error) {
 	if err := s.Authorizer.Authorize(subject(ctx), objectWildcard, produceAction); err != nil {
 		return nil, err
@@ -116,6 +131,7 @@ func (s *grpcServer) Produce(ctx context.Context, req *api.ProduceRequest) (*api
 	return &api.ProduceResponse{Offset: offset}, nil
 }
 
+// Consume checks read permission before looking up the requested absolute offset.
 func (s *grpcServer) Consume(ctx context.Context, req *api.ConsumeRequest) (*api.ConsumeResponse, error) {
 	if err := s.Authorizer.Authorize(subject(ctx), objectWildcard, consumeAction); err != nil {
 		return nil, err
@@ -129,6 +145,8 @@ func (s *grpcServer) Consume(ctx context.Context, req *api.ConsumeRequest) (*api
 	}, nil
 }
 
+// ProduceStream receives, authorizes, appends, and acknowledges one record at a time.
+// Receive errors, including client EOF, are returned directly.
 func (s *grpcServer) ProduceStream(stream api.Log_ProduceStreamServer) error {
 	for {
 		req, err := stream.Recv()
@@ -145,6 +163,8 @@ func (s *grpcServer) ProduceStream(stream api.Log_ProduceStreamServer) error {
 	}
 }
 
+// ConsumeStream follows offsets from the request until cancellation or an error.
+// It retries missing offsets immediately, so waiting at the log tail busy-polls.
 func (s *grpcServer) ConsumeStream(
 	req *api.ConsumeRequest,
 	stream api.Log_ConsumeStreamServer,
@@ -165,13 +185,18 @@ func (s *grpcServer) ConsumeStream(
 			if err = stream.Send(res); err != nil {
 				return err
 			}
+			// Advance only after delivery so a missing offset is retried without skipping data.
 			req.Offset++
 		}
 	}
 }
 
+// subjectContextKey avoids collisions with context values from other packages.
 type subjectContextKey struct{}
 
+// authenticate stores the verified TLS leaf certificate common name as the subject.
+// Connections without transport auth get an empty subject for policy evaluation;
+// authenticated connections are assumed to use TLS with a verified certificate chain.
 func authenticate(ctx context.Context) (context.Context, error) {
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
@@ -190,6 +215,8 @@ func authenticate(ctx context.Context) (context.Context, error) {
 	return ctx, nil
 }
 
+// subject retrieves the identity installed by the authentication interceptor.
+// Calling it without that interceptor context panics.
 func subject(ctx context.Context) string {
 	return ctx.Value(subjectContextKey{}).(string)
 }

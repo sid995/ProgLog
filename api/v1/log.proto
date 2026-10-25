@@ -4,30 +4,41 @@ package log.v1;
 
 option go_package = "proglog/api/log_v1";
 
+// Record carries an opaque payload and its server-assigned absolute log offset.
 message Record {
+  // Payload bytes are protobuf data on disk; HTTP uses a separate JSON record type.
   bytes value = 1;
   uint64 offset = 2;
 }
 
+// Log exposes appends, random reads, and ordered streaming over the same storage.
 service Log {
+  // Append one record and return its assigned offset.
   rpc Produce(ProduceRequest) returns (ProduceResponse) {}
+  // Read one absolute offset; a missing offset returns NotFound.
   rpc Consume(ConsumeRequest) returns (ConsumeResponse) {}
+  // Read successive offsets, retrying at the tail until cancellation.
   rpc ConsumeStream(ConsumeRequest) returns (stream ConsumeResponse) {}
+  // Acknowledge each appended request in receive order.
   rpc ProduceStream(stream ProduceRequest) returns (stream ProduceResponse) {}
 }
 
+// ProduceRequest carries a record whose incoming offset is replaced on append.
 message ProduceRequest {
   Record record = 1;
 }
 
+// ProduceResponse identifies the newly appended record.
 message ProduceResponse {
   uint64 offset = 1;
 }
 
+// ConsumeRequest selects a single offset or the start of a consuming stream.
 message ConsumeRequest {
   uint64 offset = 1;
 }
 
+// ConsumeResponse returns the stored payload and assigned offset.
 message ConsumeResponse {
   Record record = 2;
 }

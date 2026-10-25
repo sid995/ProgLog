@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestSegment checks absolute offsets, index/store capacity limits, and file removal.
 func TestSegment(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "segment-test")
 	defer os.RemoveAll(dir)

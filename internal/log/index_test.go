@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestIndex checks entry lookup, EOF boundaries, and recovery after a clean close.
 func TestIndex(t *testing.T) {
 	f, err := os.CreateTemp(os.TempDir(), "index_test")
 	require.NoError(t, err)

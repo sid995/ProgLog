@@ -12,6 +12,7 @@ var (
 	width = uint64(len(write)) + lenWidth
 )
 
+// TestStoreAppendRead checks buffered appends and both framed and raw reads.
 func TestStoreAppendRead(t *testing.T) {
 	f, err := os.CreateTemp("", "store_append_read_test")
 	require.NoError(t, err)
@@ -29,6 +30,7 @@ func TestStoreAppendRead(t *testing.T) {
 	testRead(t, s)
 }
 
+// testAppend verifies each append advances by payload size plus its length prefix.
 func testAppend(t *testing.T, s *store) {
 	t.Helper()
 	for i := uint64(1); i < 4; i++ {
@@ -38,6 +40,7 @@ func testAppend(t *testing.T, s *store) {
 	}
 }
 
+// testRead verifies framed records at successive byte positions.
 func testRead(t *testing.T, s *store) {
 	t.Helper()
 	var pos uint64
@@ -49,6 +52,7 @@ func testRead(t *testing.T, s *store) {
 	}
 }
 
+// testReadAt decodes framing manually to verify raw positional reads.
 func testReadAt(t *testing.T, s *store) {
 	t.Helper()
 	for i, off := uint64(1), int64(0); i < 4; i++ {
@@ -67,6 +71,7 @@ func testReadAt(t *testing.T, s *store) {
 	}
 }
 
+// TestStoreClose checks closing flushes data that was still in the write buffer.
 func TestStoreClose(t *testing.T) {
 	f, err := os.CreateTemp("", "store_close_test")
 	require.NoError(t, err)
@@ -90,6 +95,7 @@ func TestStoreClose(t *testing.T) {
 	require.True(t, afterSize > beforeSize)
 }
 
+// openFile opens an appendable test file and reports its current on-disk size.
 func openFile(name string) (file *os.File, size int64, err error) {
 	f, err := os.OpenFile(
 		name,

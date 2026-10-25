@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 )
 
+// Default credential and ACL paths are resolved once during package initialization.
 var (
 	CAFile               = configFile("ca.pem")
 	ServerCertFile       = configFile("server.pem")
@@ -17,6 +18,8 @@ var (
 	ACLPolicyFile        = configFile("policy.csv")
 )
 
+// configFile uses CONFIG_DIR when set, otherwise $HOME/.proglog.
+// Failure to resolve the home directory panics during initialization.
 func configFile(filename string) string {
 	if dir := os.Getenv("CONFIG_DIR"); dir != "" {
 		return filepath.Join(dir, filename)

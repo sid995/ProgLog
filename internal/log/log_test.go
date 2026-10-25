@@ -19,6 +19,7 @@ var testingFunctions = map[string]func(t *testing.T, log *Log){
 	"truncate":                          testTruncate,
 }
 
+// TestLog runs each storage scenario with an isolated directory and small segments.
 func TestLog(t *testing.T) {
 	for scenario, fn := range testingFunctions {
 		t.Run(scenario, func(t *testing.T) {
@@ -36,6 +37,7 @@ func TestLog(t *testing.T) {
 	}
 }
 
+// testAppendRead verifies an appended payload can be retrieved by its assigned offset.
 func testAppendRead(t *testing.T, log *Log) {
 	append := &api.Record{
 		Value: []byte("hello world"),
@@ -49,6 +51,7 @@ func testAppendRead(t *testing.T, log *Log) {
 	require.Equal(t, append.Value, read.Value)
 }
 
+// testOutOfRangeErr checks the typed error retains the requested missing offset.
 func testOutOfRangeErr(t *testing.T, log *Log) {
 	read, err := log.Read(1)
 	require.Nil(t, read)
@@ -56,6 +59,7 @@ func testOutOfRangeErr(t *testing.T, log *Log) {
 	require.Equal(t, uint64(1), apiErr.Offset)
 }
 
+// testInitExisting verifies offset boundaries survive a clean close and reopen.
 func testInitExisting(t *testing.T, log *Log) {
 	append := &api.Record{
 		Value: []byte("hello world"),
@@ -86,6 +90,7 @@ func testInitExisting(t *testing.T, log *Log) {
 	require.Equal(t, uint64(2), off)
 }
 
+// testReader checks raw log output contains a length-prefixed protobuf record.
 func testReader(t *testing.T, log *Log) {
 	append := &api.Record{
 		Value: []byte("hello world"),
@@ -99,11 +104,13 @@ func testReader(t *testing.T, log *Log) {
 	require.NoError(t, err)
 
 	read := &api.Record{}
+	// Skip the store framing prefix before decoding the protobuf payload.
 	err = proto.Unmarshal(b[lenWidth:], read)
 	require.NoError(t, err)
 	require.Equal(t, append.Value, read.Value)
 }
 
+// testTruncate verifies truncation retains a segment that straddles the cutoff.
 func testTruncate(t *testing.T, log *Log) {
 	append := &api.Record{
 		Value: []byte("hello world"),

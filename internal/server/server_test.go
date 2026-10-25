@@ -25,6 +25,7 @@ import (
 
 var debug = flag.Bool("debug", false, "Enable observability for debugging.")
 
+// TestMain optionally installs development logging before running RPC tests.
 func TestMain(m *testing.M) {
 	flag.Parse()
 	if *debug {
@@ -49,6 +50,7 @@ var testServerScenarios = map[string]func(
 	"unauthorized fails":                                  testUnauthorized,
 }
 
+// TestServer runs RPC scenarios with separate storage and authenticated clients.
 func TestServer(t *testing.T) {
 	for scenario, fn := range testServerScenarios {
 		t.Run(scenario, func(t *testing.T) {
@@ -59,6 +61,9 @@ func TestServer(t *testing.T) {
 	}
 }
 
+// setupTest starts a TLS gRPC server with permitted root and denied nobody clients.
+// An optional callback adjusts dependencies before startup; teardown stops network
+// resources and debug telemetry, but does not close or remove the temporary log.
 func setupTest(t *testing.T, fn func(*Config)) (rootClient, nobodyClient api.LogClient, cfg *Config, teardown func()) {
 	t.Helper()
 	l, err := net.Listen("tcp", "127.0.0.1:0")
@@ -154,6 +159,7 @@ func setupTest(t *testing.T, fn func(*Config)) (rootClient, nobodyClient api.Log
 		nobodyConn.Close()
 		l.Close()
 		if telemetryExporter != nil {
+			// Allow one reporting interval for debug metrics before stopping the exporter.
 			time.Sleep(1500 * time.Millisecond)
 			telemetryExporter.Stop()
 			telemetryExporter.Close()
@@ -161,6 +167,7 @@ func setupTest(t *testing.T, fn func(*Config)) (rootClient, nobodyClient api.Log
 	}
 }
 
+// testProduceConsume verifies a permitted unary append/read round trip.
 func testProduceConsume(t *testing.T, rootClient, _ api.LogClient, _ *Config) {
 	ctx := context.Background()
 	want := &api.Record{Value: []byte("hello world")}
@@ -179,6 +186,7 @@ func testProduceConsume(t *testing.T, rootClient, _ api.LogClient, _ *Config) {
 	require.Equal(t, want.Offset, consume.Record.Offset)
 }
 
+// testConsumePastBoundary checks missing offsets become the expected RPC status.
 func testConsumePastBoundary(t *testing.T, rootClient, _ api.LogClient, _ *Config) {
 	ctx := context.Background()
 	produce, err := rootClient.Produce(ctx, &api.ProduceRequest{
@@ -201,6 +209,7 @@ func testConsumePastBoundary(t *testing.T, rootClient, _ api.LogClient, _ *Confi
 	}
 }
 
+// testProduceConsumeStream verifies per-record acknowledgements and ordered consumption.
 func testProduceConsumeStream(t *testing.T, rootClient, _ api.LogClient, _ *Config) {
 	ctx := context.Background()
 
@@ -239,6 +248,7 @@ func testProduceConsumeStream(t *testing.T, rootClient, _ api.LogClient, _ *Conf
 	}
 }
 
+// testUnauthorized checks both actions reject a verified identity absent from the ACL.
 func testUnauthorized(t *testing.T, _, client api.LogClient, config *Config) {
 	ctx := context.Background()
 	produce, err := client.Produce(ctx,

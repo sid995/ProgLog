@@ -33,7 +33,8 @@ type store struct {
 
 // newStore opens an existing store file for reading and writing. It
 // records the file's current size so that Append can continue from
-// where a previous writer left off (supporting recovery after restart).
+// where a previous writer left off. The caller must open f with O_APPEND
+// (or position its write cursor correctly); this constructor does not seek.
 func newStore(f *os.File) (*store, error) {
 	fi, err := os.Stat(f.Name())
 	if err != nil {

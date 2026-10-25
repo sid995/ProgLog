@@ -35,7 +35,8 @@ type index struct {
 // newIndex creates an index for the given file. It records the current
 // file size (to support recovery after a restart), truncates the file to
 // the configured maximum index size, and memory-maps it with read-write
-// access.
+// access. Recovery relies on Close truncating unused capacity; this does not
+// reconstruct the valid entry count after an unclean shutdown.
 func newIndex(f *os.File, c Config) (*index, error) {
 	idx := &index{file: f}
 
