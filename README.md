@@ -8,7 +8,7 @@ An append-only record log with a small HTTP demo, disk-backed storage, authentic
 | --- | --- |
 | `main.go` | Starts the HTTP demo on `:8080`. |
 | `internal/server/http.go`, `internal/server/log.go` | JSON API backed by an in-memory slice. This state is separate from the persistent log. |
-| `internal/log/` | Persistent segmented log, protobuf serialization, record framing, and offset lookup. |
+| `internal/log/` | Persistent segmented log, protobuf serialization, record framing, offset lookup, and peer replication. |
 | `internal/server/server.go` | gRPC handlers, streaming, authentication interceptors, logging, and OpenCensus telemetry. |
 | `api/v1/log.proto`, `api/v1/error.go` | RPC schema and missing-offset status conversion. The `.pb.go` files are generated bindings. |
 | `internal/auth/` | Casbin authorization for subject/object/action tuples. |
@@ -43,6 +43,8 @@ TLS configuration loads a certificate only when both certificate and key paths a
 
 Serf uses its own gossip bind address. A member's `rpc_addr` tag advertises the application address delivered to `Handler.Join`. Remote departures and failures invoke `Handler.Leave`; callback errors are logged without retry. Joining seed peers happens after Serf starts, so a seed-join error does not shut down the already-created instance.
 
+`Replicator` implements that membership handler. A join opens a gRPC client and starts consuming the peer from offset zero; each received record is appended to `LocalServer`. It suppresses duplicate joins by node name and stops forwarding when that name leaves. Stream and append failures are logged and end that peer's copy, with no retry or saved resume offset. `Close` closes a shared signal but the forwarding loop does not exit when it receives that signal. Neither shutdown path cancels the blocking stream receive or waits for goroutines, so receivers may remain blocked. The replicator is a building block; the executable does not instantiate it.
+
 ## Development and tests
 
 The module's Go version is declared in `go.mod`. Run the HTTP demo with `go run .`. Run storage tests with `go test ./internal/log`.
@@ -51,7 +53,7 @@ The gRPC tests need certificates and ACL files. `internal/config` resolves their
 
 `make compile` regenerates protobuf bindings and requires `protoc` plus the Go protobuf and gRPC generators. Edit schema documentation in `log.proto` rather than generated bindings. `go test ./internal/server -debug` enables development logging and writes telemetry to temporary files.
 
-Storage tests cover framing, positional reads, index boundaries, segment limits, clean reopen, raw readers, and segment retention. Server tests exercise TLS identities, unary and streaming requests, missing offsets, and authorization failures.
+Storage tests cover framing, positional reads, index boundaries, segment limits, clean reopen, raw readers, and segment retention. Server tests exercise TLS identities, unary and streaming requests, missing offsets, and authorization failures. The membership test starts three local Serf nodes, checks join callbacks, then leaves one node and checks the departure callback.
 
 ## Current implementation limits
 
