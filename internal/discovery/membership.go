@@ -1,3 +1,4 @@
+// Package discovery translates Serf membership events into peer callbacks.
 package discovery
 
 import (

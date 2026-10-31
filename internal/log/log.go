@@ -179,9 +179,9 @@ func (l *Log) HighestOffset() (uint64, error) {
 	return off - 1, nil
 }
 
-// Truncate removes all segments whose records have offsets strictly
-// less than lowest. Segments whose exclusive end is at or below lowest are deleted
-// from disk; the remaining segments become the new segment list.
+// Truncate deletes whole segments whose exclusive end is at or below lowest+1.
+// Thus records at lowest can be removed when they end a segment. The remaining
+// segments become the new segment list; lowest == MaxUint64 overflows the cutoff.
 func (l *Log) Truncate(lowest uint64) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()

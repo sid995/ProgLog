@@ -10,6 +10,7 @@ An append-only record log with a small HTTP demo, disk-backed storage, authentic
 | `internal/server/http.go`, `internal/server/log.go` | JSON API backed by an in-memory slice. This state is separate from the persistent log. |
 | `internal/log/` | Persistent segmented log, protobuf serialization, record framing, offset lookup, and peer replication. |
 | `internal/server/server.go` | gRPC handlers, streaming, authentication interceptors, logging, and OpenCensus telemetry. |
+| `internal/agent/` | Composes storage, gRPC, discovery, and replication into a node. |
 | `api/v1/log.proto`, `api/v1/error.go` | RPC schema and missing-offset status conversion. The `.pb.go` files are generated bindings. |
 | `internal/auth/` | Casbin authorization for subject/object/action tuples. |
 | `internal/config/` | TLS configuration and credential/ACL path resolution. |
@@ -37,6 +38,8 @@ The executable starts only the HTTP demo. `POST /` accepts `{"record":{"value":"
 
 To use gRPC, an embedding program supplies a `CommitLog`, an `Authorizer`, transport options, and a listener to `NewGRPCServer`. Both unary and streaming operations use the same authorization checks. A verified client certificate's common name is the policy subject. All log requests use the literal object `*` and action `produce` or `consume`. The test policy permits `root` for both actions and denies `nobody` by absence of a matching rule.
 
+An embedding program can instead construct an `agent.Agent` with an existing data directory, unique node name, gossip bind address, RPC port, ACL files, and server and peer TLS configurations. Set `StartJoinAddrs` to existing nodes' gossip addresses to join a group. `RPCAddr` combines the gossip host with the RPC port; peers discover that address via the `rpc_addr` tag. Call `Shutdown` when finished. `internal/agent/agent_test.go` shows the complete three-node setup.
+
 `ProduceStream` acknowledges each request before receiving the next. `ConsumeStream` sends successive offsets, advancing only after a successful send. Missing offsets are retried immediately, including at the log tail, so an idle consuming stream busy-polls. Cancellation ends that consuming loop. The producer returns receive errors directly, including client EOF.
 
 TLS configuration loads a certificate only when both certificate and key paths are provided. A configured CA supplies client trust roots in client mode; in server mode it requires and verifies client certificates. The authentication interceptor assumes authenticated transports are TLS connections with verified certificate chains.
@@ -54,6 +57,7 @@ The gRPC tests need certificates and ACL files. `internal/config` resolves their
 `make compile` regenerates protobuf bindings and requires `protoc` plus the Go protobuf and gRPC generators. Edit schema documentation in `log.proto` rather than generated bindings. `go test ./internal/server -debug` enables development logging and writes telemetry to temporary files.
 
 Storage tests cover framing, positional reads, index boundaries, segment limits, clean reopen, raw readers, and segment retention. Server tests exercise TLS identities, unary and streaming requests, missing offsets, and authorization failures. The membership test starts three local Serf nodes, checks join callbacks, then leaves one node and checks the departure callback.
+The agent integration test starts three nodes and checks that a record written to the seed reaches a follower; it uses fixed waits for gossip and replication and needs the same TLS and ACL fixtures.
 
 ## Current implementation limits
 
@@ -64,3 +68,5 @@ These describe existing behavior rather than guarantees:
 - `Remove` and `Reset` require caller coordination with concurrent use. `Reader` captures a segment list, not an immutable snapshot; readers must not race with removal or closing those files.
 - Truncating all segments can leave stale active-segment state and an empty segment list. Offset queries expect at least one segment. An empty log with a nonzero initial offset reports that initial offset minus one as its highest offset.
 - gRPC construction changes process-wide trace sampling and registers global metric views. The provided executable does not start gRPC, replication, or discovery.
+- Agent setup changes the process-wide zap logger and does not clean up resources created before a later setup failure. Shutdown stops at the first cleanup error, and subsequent calls do not retry cleanup.
+- Replication appends records as new local writes, without leader election, deduplication, or loop prevention. A fully connected group can replicate records back and forth; it does not provide consensus or a consistent distributed log.

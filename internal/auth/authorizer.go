@@ -1,3 +1,4 @@
+// Package auth evaluates log permissions using a Casbin model and policy.
 package auth
 
 import (

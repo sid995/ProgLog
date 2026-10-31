@@ -1,3 +1,4 @@
+// Package server provides the in-memory HTTP demo and authenticated log RPCs.
 package server
 
 import (

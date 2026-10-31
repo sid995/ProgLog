@@ -1,3 +1,5 @@
+// Package agent assembles a persistent log, RPC server, discovery, and replication
+// into a node managed through a single lifecycle.
 package agent
 
 import (

@@ -1,3 +1,4 @@
+// Package log_v1 defines the log RPC protocol and its offset error.
 package log_v1
 
 import (

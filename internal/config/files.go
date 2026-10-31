@@ -1,3 +1,4 @@
+// Package config resolves development credential paths and builds TLS settings.
 package config
 
 import (
