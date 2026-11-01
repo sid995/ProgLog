@@ -157,9 +157,9 @@ func (s *segment) Close() error {
 // nearestMultiple returns the largest multiple of k that is ≤ j.
 // k must be positive. The negative branch compensates for Go division rounding
 // toward zero; converting a negative result to uint64 wraps it. Currently unused.
-func nearestMultiple(j, k int64) uint64 {
-	if j >= 0 {
-		return uint64((j / k) * k)
-	}
-	return uint64(((j - k + 1) / k) * k)
-}
+// func nearestMultiple(j, k int64) uint64 {
+// 	if j >= 0 {
+// 		return uint64((j / k) * k)
+// 	}
+// 	return uint64(((j - k + 1) / k) * k)
+// }

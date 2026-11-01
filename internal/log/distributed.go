@@ -476,8 +476,8 @@ func (l *DistributedLog) WaitForLeader(timeout time.Duration) error {
 	}
 }
 
-// CLose shuts down Raft and then closes the local log.
-func (l *DistributedLog) CLose() error {
+// Close shuts down Raft and then closes the local log.
+func (l *DistributedLog) Close() error {
 	f := l.raft.Shutdown()
 	if err := f.Error(); err != nil {
 		return err

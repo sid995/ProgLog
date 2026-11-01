@@ -47,6 +47,7 @@ require (
 	github.com/miekg/dns v1.0.14 // indirect
 	github.com/pelletier/go-toml v1.9.3 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
+	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/travisjeffery/go-dynaport v1.0.0 // indirect
 	github.com/weppos/publicsuffix-go v0.30.0 // indirect
 	github.com/zmap/zcrypto v0.0.0-20230310154051-c8b263fd8300 // indirect

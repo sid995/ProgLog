@@ -20,7 +20,7 @@ func TestMultipleNodes(t *testing.T) {
 	var logs []*log.DistributedLog
 	nodeCount := 3
 	ports := dynaport.Get(nodeCount)
-	for i := 0; i < nodeCount; i++ {
+	for i := range nodeCount {
 		dataDir, err := os.MkdirTemp("", "distributed-log-test")
 		require.NoError(t, err)
 		defer func(dir string) {

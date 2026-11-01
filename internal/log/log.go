@@ -71,13 +71,14 @@ func (l *Log) setup() error {
 	sort.Slice(baseOffsets, func(i, j int) bool {
 		return baseOffsets[i] < baseOffsets[j]
 	})
-	for i := 0; i < len(baseOffsets); i++ {
+
+	// Each segment contributes two filenames (.index and .store), so skip its twin.
+	for i := 0; i < len(baseOffsets); i += 2 {
 		if err = l.newSegment(baseOffsets[i]); err != nil {
 			return nil
 		}
-		// Each segment contributes two filenames (.index and .store), so skip its twin.
-		i++
 	}
+
 	if l.segments == nil {
 		if err = l.newSegment(l.Config.Segment.InitialOffset); err != nil {
 			return nil
