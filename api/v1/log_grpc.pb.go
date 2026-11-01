@@ -28,10 +28,16 @@ const (
 // LogClient is the client API for Log service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// Log exposes appends, random reads, and ordered streaming over the same storage.
 type LogClient interface {
+	// Append one record and return its assigned offset.
 	Produce(ctx context.Context, in *ProduceRequest, opts ...grpc.CallOption) (*ProduceResponse, error)
+	// Read one absolute offset; a missing offset returns NotFound.
 	Consume(ctx context.Context, in *ConsumeRequest, opts ...grpc.CallOption) (*ConsumeResponse, error)
+	// Read successive offsets, retrying at the tail until cancellation.
 	ConsumeStream(ctx context.Context, in *ConsumeRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ConsumeResponse], error)
+	// Acknowledge each appended request in receive order.
 	ProduceStream(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ProduceRequest, ProduceResponse], error)
 }
 
@@ -98,10 +104,16 @@ type Log_ProduceStreamClient = grpc.BidiStreamingClient[ProduceRequest, ProduceR
 // LogServer is the server API for Log service.
 // All implementations must embed UnimplementedLogServer
 // for forward compatibility.
+//
+// Log exposes appends, random reads, and ordered streaming over the same storage.
 type LogServer interface {
+	// Append one record and return its assigned offset.
 	Produce(context.Context, *ProduceRequest) (*ProduceResponse, error)
+	// Read one absolute offset; a missing offset returns NotFound.
 	Consume(context.Context, *ConsumeRequest) (*ConsumeResponse, error)
+	// Read successive offsets, retrying at the tail until cancellation.
 	ConsumeStream(*ConsumeRequest, grpc.ServerStreamingServer[ConsumeResponse]) error
+	// Acknowledge each appended request in receive order.
 	ProduceStream(grpc.BidiStreamingServer[ProduceRequest, ProduceResponse]) error
 	mustEmbedUnimplementedLogServer()
 }

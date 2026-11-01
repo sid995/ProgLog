@@ -4,6 +4,7 @@ package discovery
 import (
 	"net"
 
+	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 	"go.uber.org/zap"
 )
@@ -124,7 +125,12 @@ func (m *Membership) Leave() error {
 
 // logError attaches the peer identity and advertised RPC address to callback failures.
 func (m *Membership) logError(err error, msg string, member serf.Member) {
-	m.logger.Error(
+	log := m.logger.Error
+	// A follower rejecting a membership update is expected until it forwards to the leader.
+	if err == raft.ErrNotLeader {
+		log = m.logger.Debug
+	}
+	log(
 		msg,
 		zap.Error(err),
 		zap.String("name", member.Name),

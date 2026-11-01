@@ -9,6 +9,9 @@ message Record {
   // Payload bytes are protobuf data on disk; HTTP uses a separate JSON record type.
   bytes value = 1;
   uint64 offset = 2;
+  // Raft term and entry type are populated in records stored by the Raft log store.
+  uint64 term = 3;
+  uint32 type = 4;
 }
 
 // Log exposes appends, random reads, and ordered streaming over the same storage.

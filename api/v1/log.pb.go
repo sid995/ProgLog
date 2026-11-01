@@ -21,10 +21,14 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Record carries an opaque payload and its server-assigned absolute log offset.
 type Record struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Value         []byte                 `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
-	Offset        uint64                 `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Payload bytes are protobuf data on disk; HTTP uses a separate JSON record type.
+	Value         []byte `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+	Offset        uint64 `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	Term          uint64 `protobuf:"varint,3,opt,name=term,proto3" json:"term,omitempty"`
+	Type          uint32 `protobuf:"varint,4,opt,name=type,proto3" json:"type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -73,6 +77,21 @@ func (x *Record) GetOffset() uint64 {
 	return 0
 }
 
+func (x *Record) GetTerm() uint64 {
+	if x != nil {
+		return x.Term
+	}
+	return 0
+}
+
+func (x *Record) GetType() uint32 {
+	if x != nil {
+		return x.Type
+	}
+	return 0
+}
+
+// ProduceRequest carries a record whose incoming offset is replaced on append.
 type ProduceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Record        *Record                `protobuf:"bytes,1,opt,name=record,proto3" json:"record,omitempty"`
@@ -117,6 +136,7 @@ func (x *ProduceRequest) GetRecord() *Record {
 	return nil
 }
 
+// ProduceResponse identifies the newly appended record.
 type ProduceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Offset        uint64                 `protobuf:"varint,1,opt,name=offset,proto3" json:"offset,omitempty"`
@@ -161,6 +181,7 @@ func (x *ProduceResponse) GetOffset() uint64 {
 	return 0
 }
 
+// ConsumeRequest selects a single offset or the start of a consuming stream.
 type ConsumeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Offset        uint64                 `protobuf:"varint,1,opt,name=offset,proto3" json:"offset,omitempty"`
@@ -205,6 +226,7 @@ func (x *ConsumeRequest) GetOffset() uint64 {
 	return 0
 }
 
+// ConsumeResponse returns the stored payload and assigned offset.
 type ConsumeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Record        *Record                `protobuf:"bytes,2,opt,name=record,proto3" json:"record,omitempty"`
@@ -253,10 +275,12 @@ var File_api_v1_log_proto protoreflect.FileDescriptor
 
 const file_api_v1_log_proto_rawDesc = "" +
 	"\n" +
-	"\x10api/v1/log.proto\x12\x06log.v1\"6\n" +
+	"\x10api/v1/log.proto\x12\x06log.v1\"^\n" +
 	"\x06Record\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\fR\x05value\x12\x16\n" +
-	"\x06offset\x18\x02 \x01(\x04R\x06offset\"8\n" +
+	"\x06offset\x18\x02 \x01(\x04R\x06offset\x12\x12\n" +
+	"\x04term\x18\x03 \x01(\x04R\x04term\x12\x12\n" +
+	"\x04type\x18\x04 \x01(\rR\x04type\"8\n" +
 	"\x0eProduceRequest\x12&\n" +
 	"\x06record\x18\x01 \x01(\v2\x0e.log.v1.RecordR\x06record\")\n" +
 	"\x0fProduceResponse\x12\x16\n" +
