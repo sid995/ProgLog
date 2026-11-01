@@ -45,7 +45,7 @@ func TestAgent(t *testing.T) {
 		bindAddr := fmt.Sprintf("%s:%d", "127.0.0.1", ports[0])
 		rpcPort := ports[1]
 
-		dataDir, err := os.CreateTemp("", "agent-test-log")
+		dataDir, err := os.MkdirTemp("", "agent-test-log")
 		require.NoError(t, err)
 
 		var startJoinAddrs []string
@@ -57,7 +57,7 @@ func TestAgent(t *testing.T) {
 			StartJoinAddrs:  startJoinAddrs,
 			BindAddr:        bindAddr,
 			RPCPort:         rpcPort,
-			DataDir:         dataDir.Name(),
+			DataDir:         dataDir,
 			ACLModelFile:    config.ACLModelFile,
 			ACLPolicyFile:   config.ACLPolicyFile,
 			ServerTLSConfig: serverTLSConfig,
